@@ -14,11 +14,14 @@
 #include <vector>
 #include <atomic>
 #include <thread>
+#include <condition_variable>
 using namespace std; 
 
 atomic<int> totalPrimes;
 vector<int>sieve;
 bool maindone=false;
+condition_variable cvar;
+mutex mtx;
 
 void process(vector<int>sieve, int N, int P, int tid){
   int sqrtN=floor(sqrt(N));
@@ -32,14 +35,19 @@ void process(vector<int>sieve, int N, int P, int tid){
     candidate[i]=true;
   }
   for(int x: sieve){
+    unique_lock<mutex>lck(mtx);
+    while(maindone==false){
+      cvar.wait(lck);
+    }
     for(int i=offset; i<=end;i++){
       if(i%x==0){
-	candidate[i]=false;
-	for(int j= i+i; j<=end; j+=i){
-	  candidate[j]=false;
-	}
+	      candidate[i]=false;
+	      for(int j= i+i; j<=end; j+=i){
+	        candidate[j]=false;
+	      } 
       }
     }
+    lck.unlock();
   }
   for(int i=offset; i<=end; i++){
     if(candidate[i]){
@@ -88,13 +96,16 @@ int main(int argc, char **argv) {
   vector<int>sieve;   
   for (int i = 2; i <= sqrt(N); i++){
     if (candidate[i]){
+      unique_lock<mutex> lck(mtx);
       sieve.push_back(i);
+      lck.unlock();
+      cvar.notify_all();
       for (int j = i+i; j <= sqrtN; j += i){
         candidate[j] = false;
       }
     }
   }
-  
+  maindone=true;
   auto end = chrono::steady_clock::now();
   auto duration = chrono::duration<double, std::milli> (end-start);
   int count = 0;
