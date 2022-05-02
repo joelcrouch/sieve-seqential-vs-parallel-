@@ -13,11 +13,36 @@
 #include <chrono>
 #include <vector>
 #include <atomic>
+#include <thread>
 using namespace std; 
 
 atomic<int> totalPrimes;
 void process(vector<int>sieve, int N, int P, int tid){
-
+int range= ((N-sqrtN)/P);
+int offset = sqrtN + (range *tid);
+int end = offset+range;
+int count=0;
+ // cout<<"\nsqrtN: "<<sqrtN<<" range: "<<range<<" offset: "<<offset<<" end: "<<end<<"  \n";
+bool candidate[N+1];
+for(int i= offset; i<=end; i++){
+  candidate[i]=true;
+}
+for(int x: sieve){
+  for(int i=offset; i<=end;i++){
+    if(i%x==0){
+      candidate[i]=false;
+      for(int j= i+i; j<=end; j+=i){
+        candidate[j]=false;
+      }
+    }
+  }
+}
+for(int i=offset; i<=end; i++){
+  if(candidate[i]){
+    count++;
+  }
+}
+  totalPrimes +=count;
 }
 int main(int argc, char **argv) {
   int N;
